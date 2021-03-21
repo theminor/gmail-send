@@ -1,0 +1,26 @@
+{
+	"name": "gmail-send",
+	"version": "1.0.0",
+	"description": "Send email through gmail",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/theminor/gmail-send.git"
+	},
+	"keywords": [
+		"email",
+		"gmail"
+	],
+	"dependencies": {
+		"googleapis": ">=68.0.0"
+	},
+	"author": "theminor",
+	"license": "UNLICENSED",
+	"bugs": {
+		"url": "https://github.com/theminor/gmail-send/issues"
+	},
+	"homepage": "https://github.com/theminor/gmail-send#readme"
+}
