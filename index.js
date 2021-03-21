@@ -33,7 +33,7 @@ function authorize(credentials) {
 
 /**
  * Get and store new token after prompting for user authorization, and then execute the given callback with the authorized OAuth2 client.
- * @param {google.auth.OAuth2} oAuth2Client The OAuth2 client to get token for.
+ * @param {google.auth.OAuth2} oAuth2Client The OAuth2 client to get token for
  * @returns {Promise} resolves to the oAuth2Client Object
  */
 function getNewToken(oAuth2Client) {
@@ -103,7 +103,7 @@ function sendMessage(auth, to, from, subject, message) {
 }
 
 /**
- * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js'); and then send email with sendEmail(to,from,subject,message);
+ * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
  * @param {Object} credentials The authorization client credentials containing at least {"installed": {"client_id":"string", "client_secret":"string", "redirect_uris": ["string"]}}
  * @param {string} to - email address to send the message to
  * @param {string} from  - email address to send the message to
