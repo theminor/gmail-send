@@ -7,4 +7,4 @@ This will also get you the required client credentials, which must be passed to 
 
 Upon first run, the module will prompt for the appropriate code from the given website to authenticate the OAuth2 token. Thereafter, the credentials are stored in `token.json` and a refreshtoekn will be used without the need for interaction.
 
-To use this module, first install the `googleapis` module with `npm install googleapis`. Then require this module with, for example: `sendEmail = require('./thisfile.js')`. Finally, to send email, call `sendEmail(credentials, to, from, subject, message)`.
+To use this module, first install the `googleapis` module with `npm install googleapis`. Then require this module with, for example: `sendEmail = require('./path/to/index.js')`. Finally, to send email, call `sendEmail(credentials, to, from, subject, message)`.
