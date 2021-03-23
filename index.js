@@ -1,70 +1,52 @@
-const fs = require('fs');
-const readline = require('readline');
-const {google} = require('googleapis');
-
-const Scopes = [
-	'https://mail.google.com/',
-	'https://www.googleapis.com/auth/gmail.modify',
-	'https://www.googleapis.com/auth/gmail.compose',
-	'https://www.googleapis.com/auth/gmail.send'
-];
-
-const TokenPath = 'token.json';  // The file token.json stores the user's access and refresh tokens, and is created automatically when the authorization flow completes for the first time.
 
 /**
- * Create an OAuth2 client with the given credentials
- * @param {Object} credentials The authorization client credentials containing at least {"installed": {"client_id":"string", "client_secret":"string", "redirect_uris": ["string"]}}
- * @returns {Promise} resolves to the OAuth2 Object
+ * 
+ * @param {string|URL} url - The url to call 
+ * @param {Object} options - Request options per NodeJs request (https://nodejs.org/api/http.html#http_http_request_options_callback)
+ * @param {string} body - The data to send in the body of the request
+ * @returns {Promise} Resolves to the response to the request in the form: {body: "body", response: responseObject}
  */
-function authorize(credentials) {
-	return new Promise(async (resolve, reject) => {
-		let oAuth2Client;
-		try {
-			const {client_secret, client_id, redirect_uris} = credentials.installed;
-			oAuth2Client = new google.auth.OAuth2( client_id, client_secret, redirect_uris[0] );
-		} catch (err) { reject(`Gmail send - error with credentials: ${err}`); }
-		fs.readFile(TokenPath, (err, token) => {  // Check if we have previously stored a token.
-			if (err) resolve(await getNewToken(oAuth2Client));
-			oAuth2Client.setCredentials(JSON.parse(token));
-			resolve(oAuth2Client);
+function req(url, options, body) {
+	options = options || {};
+	if ((!options.method) && body) options.method  = 'POST';
+	return new Promise((resolve, reject) => {
+		const req = https.request(url, options, res => {
+			let resDta = {body: ''};
+			if (res.statusCode && (res.statusCode >= 300)) reject('Request - response failed in req(); returned Status Code: ' + res.statusCode + '. Response object: ' + res);
+			res.on('error', err => logMsg('Request - response error in req(): ' + err + '. Response object: ' + res));
+			res.on('data', d => resDta.body += d);
+			res.on('end', () => {
+				resDta.reponse = res;  // now resDta = {body: "body", response: responseObject}
+				resolve(resDta);
+			});
 		});
+		req.on('error', err => logMsg('Request error in req(): ' + err + '. For request: ' + req));
+		req.end(body);
 	});
 }
 
 /**
- * Get and store new token after prompting for user authorization, and then execute the given callback with the authorized OAuth2 client.
- * @param {google.auth.OAuth2} oAuth2Client The OAuth2 client to get token for
- * @returns {Promise} resolves to the oAuth2Client Object
+ * Refresh the Access token per the Gmail API (see https://developers.google.com/identity/protocols/oauth2/web-server#httprest_7)
+ * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
+ * @returns {string} The new Access Token
  */
-function getNewToken(oAuth2Client) {
-	return new Promise((resolve, reject) => {
-		let rl;
-		try {
-			const authUrl = oAuth2Client.generateAuthUrl({
-				access_type: 'offline',
-				scope: Scopes
-			});
-			console.log('Authorize this app by visiting this url:', authUrl);
-			rl = readline.createInterface({
-				input: process.stdin,
-				output: process.stdout
-			});
-		} catch (err) { reject(`Gmail send error in authorization url: ${err}`); }
-		rl.question('Enter the code from that page here: ', (code) => {
-			rl.close();
-			oAuth2Client.getToken(code, (err, token) => {
-				if (err) reject('Gmail send - Error retrieving access token', err);
-				else {
-					oAuth2Client.setCredentials(token);
-					fs.writeFile(TokenPath, JSON.stringify(token), (err) => {  // Store the token to disk for later program executions
-						if (err) reject(`Gmail send - error writing token to file: ${err}`);
-						else console.info(`Gmail send - Token stored to ${TokenPath}`);
-						resolve(oAuth2Client);
-					});
+async function refreshToken(credentials) {
+	try {
+		response = JSON.parse(await req(
+			'https://oauth2.googleapis.com/token', 
+			{
+				headers: {
+					Accept: `application/json`,
+					"Content-Type": `application/x-www-form-urlencoded`
 				}
-			});
-		});
-	});
+			},
+			`client_id=${credentials.clientId}&client_secret=${credentials.clientSecret}&refresh_token=${credentials.refreshToken}&grant_type=refresh_token`
+		));
+		credentials.accessToken = response['access_token'];  // should update credentials, since passed by reference and not by value
+		return response['access_token'];
+	} catch (err) {
+		return err;
+	}
 }
 
 /**
@@ -75,36 +57,46 @@ function getNewToken(oAuth2Client) {
  * @param {string} message - the body of the email message
  * @returns {Buffer} the encoded email message
  */
- function makeBody(to, from, subject, message) {
+ function makeEmailBody(to, from, subject, message) {
 	let str = `Content-Type: text/html; charset="UTF-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\nto: ${to}\nfrom: ${from}\nsubject: ${subject}\n\n${message}`;
 	return Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');  // convert to base64url string
 }
 
 /**
- * Send the message
- * @param {google.auth.OAuth2} auth - An authorized OAuth2 client.
- * @param {string} to - email address to send the message to
- * @param {string} from  - email address to send the message to
- * @param {string} subject - the email message subject
- * @param {string} message - the body of the email message
+ * Send an email using the gmail API
+ * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
+ * @param {string} to - Email address to send the message to
+ * @param {string} from  - Email address to send the message to
+ * @param {string} subject - The email message subject
+ * @param {string} message - The body of the email message
  */
-function sendMessage(auth, to, from, subject, message) {
-	return new Promise((resolve, reject) => {
-		const gmail = google.gmail({version: 'v1', auth});
-		gmail.users.messages.send({
-			auth: auth,
-			userId: 'me',
-			resource: { raw: makeBody(to, from, subject, message) }
-		}, (err, response) => {
-			if (err) reject(`Error in sendMessage(): ${err}`);
-			else resolve(response);
-		});
-	});
+async function sendEmail(credentials, to, from, subject, message) {
+	let response = false;
+	let options = {
+		headers: {
+			Authorization: `Bearer ${credentials.accessToken}`,
+			Accept: `application/json`,
+			"Content-Type": `application/json`
+		}
+	};
+	const body = JSON.stringify({raw: makeEmailBody(to, from, subject, message)});
+	try {
+		response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
+	} catch (err1) {
+		try {  // assume the error was due to expired token -- *** TO DO: check the response and actually verify the error before resorting to a token update ***
+			options.headers.Authorization = `Bearer ${refreshToken(credentials)}`;
+			response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
+		} catch (err2) {
+			return err2;
+		}
+	}
+	return response;
 }
+
 
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
- * @param {Object} credentials The authorization client credentials containing at least {"installed": {"client_id":"string", "client_secret":"string", "redirect_uris": ["string"]}}
+ * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
  * @param {string} to - email address to send the message to
  * @param {string} from  - email address to send the message to
  * @param {string} subject - the email message subject
@@ -113,6 +105,7 @@ function sendMessage(auth, to, from, subject, message) {
  * @returns {Object} the api response from the gmail api
  */
 module.exports = async function (credentials, to, from, subject, message, errHandler) {
+	// *** TO DO ***
 	try {
 		return await sendMessage(await authorize(credentials), to, from, subject, message);
 	} catch (err) {

@@ -15,7 +15,6 @@
 		"gmail"
 	],
 	"dependencies": {
-		"googleapis": ">=68.0.0"
 	},
 	"author": "theminor",
 	"license": "UNLICENSED",
