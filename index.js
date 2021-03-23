@@ -11,16 +11,15 @@ function req(url, options, body) {
 	if ((!options.method) && body) options.method  = 'POST';
 	return new Promise((resolve, reject) => {
 		const req = https.request(url, options, res => {
-			let resDta = {body: ''};
-			if (res.statusCode && (res.statusCode >= 300)) reject('Request - response failed in req(); returned Status Code: ' + res.statusCode + '. Response object: ' + res);
-			res.on('error', err => logMsg('Request - response error in req(): ' + err + '. Response object: ' + res));
-			res.on('data', d => resDta.body += d);
+			let resDta = '';
+			res.on('error', err => reject('Request - response error in req(): ' + err + '. Response object: ' + res));
+			res.on('data', d => resDta += d);
 			res.on('end', () => {
-				resDta.reponse = res;  // now resDta = {body: "body", response: responseObject}
-				resolve(resDta);
+				res.body = resDta;  // add a "body" to the response object
+				resolve(res);
 			});
 		});
-		req.on('error', err => logMsg('Request error in req(): ' + err + '. For request: ' + req));
+		req.on('error', err => reject('Request error in req(): ' + err + '. For request: ' + req));
 		req.end(body);
 	});
 }
@@ -42,7 +41,7 @@ async function refreshToken(credentials) {
 			},
 			`client_id=${credentials.clientId}&client_secret=${credentials.clientSecret}&refresh_token=${credentials.refreshToken}&grant_type=refresh_token`
 		));
-		credentials.accessToken = response['access_token'];  // should update credentials, since passed by reference and not by value
+		credentials.accessToken = response.body['access_token'];  // should update credentials, since passed by reference and not by value
 		return response['access_token'];
 	} catch (err) {
 		return err;
@@ -81,18 +80,17 @@ async function sendEmail(credentials, to, from, subject, message) {
 	};
 	const body = JSON.stringify({raw: makeEmailBody(to, from, subject, message)});
 	try {
-		response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
-	} catch (err1) {
-		try {  // assume the error was due to expired token -- *** TO DO: check the response and actually verify the error before resorting to a token update ***
+		response = JSON.parse(await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body));
+		if (response.statusCode === 401) {  // Unauthorized - Try to refresh an expired token
 			options.headers.Authorization = `Bearer ${refreshToken(credentials)}`;
 			response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
-		} catch (err2) {
-			return err2;
 		}
+	} catch (err) {
+		return err;
 	}
+	if (res.statusCode && (res.statusCode >= 300)) reject('Request - response failed in req(); returned Status Code: ' + res.statusCode + '. Response object: ' + res);
 	return response;
 }
-
 
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
@@ -106,6 +104,11 @@ async function sendEmail(credentials, to, from, subject, message) {
  */
 module.exports = async function (credentials, to, from, subject, message, errHandler) {
 	// *** TO DO ***
+	let resp = sendEmail(credentials, to, from, subject, message);
+	console.log(credentials);
+	return resp;
+
+	/*
 	try {
 		return await sendMessage(await authorize(credentials), to, from, subject, message);
 	} catch (err) {
@@ -113,4 +116,5 @@ module.exports = async function (credentials, to, from, subject, message, errHan
 		else console.error(`Error sending gmail message: ${err}`);
 		return null;
 	}
+	*/
 };
