@@ -1,4 +1,15 @@
 const https = require('https');
+const fs = require('fs');
+
+/**
+ * Log or send an error to the provided errHandler function
+ * @param {string|Error} errMsg - the Error message to log or send 
+ * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
+ */
+function handleErr(errMsg, errHandler) {
+	if (errHandler) errHandler(errMsg);
+	else console.error(errMsg);
+}
 
 /**
  * 
@@ -10,22 +21,17 @@ const https = require('https');
 function req(url, options, body) {
 	options = options || {};
 	if ((!options.method) && body) options.method  = 'POST';
-
-	// ***
-	console.log('req():', url, options, body);
-	// ***
-
 	return new Promise((resolve, reject) => {
 		const req = https.request(url, options, res => {
 			let resDta = '';
-			res.on('error', err => reject('Request - response error in req(): ' + err + '. Response object: ' + res));
+			res.on('error', err => reject(`Request - response Error: ${err}`));
 			res.on('data', d => resDta += d);
 			res.on('end', () => {
 				res.body = resDta;  // add a "body" to the response object
 				resolve(res);
 			});
 		});
-		req.on('error', err => reject('Request error in req(): ' + err + '. For request: ' + req));
+		req.on('error', err => reject(`Request error: ${err}`));
 		req.end(body);
 	});
 }
@@ -36,31 +42,16 @@ function req(url, options, body) {
  * @returns {Promise<string>} Resolves to the new Access Token
  */
 async function refreshToken(credentials) {
-	// ***
-	console.log('refreshToken():', credentials);
-	// ***
-
 	let response;
 	try {
-		response = JSON.parse(await req(
+		let respObj = await req(
 			'https://oauth2.googleapis.com/token', 
-			{
-				headers: {
-					Accept: `application/json`,
-					"Content-Type": `application/x-www-form-urlencoded`
-				}
-			},
+			{ headers: {Accept: `application/json`, "Content-Type": `application/x-www-form-urlencoded`} },
 			`client_id=${credentials.clientId}&client_secret=${credentials.clientSecret}&refresh_token=${credentials.refreshToken}&grant_type=refresh_token`
-		));
-
-		// ***
-		console.log('refresh response:', response);
-		// ***
-
-		credentials.accessToken = response.body['access_token'];  // should update credentials, since passed by reference and not by value
-	} catch (err) {
-		return err;
-	}
+		);
+		response = JSON.parse(respObj.body);
+		credentials.accessToken = response['access_token'];  // should update credentials, since passed by reference and not by value
+	} catch (err) { handleErr(`Error refreshing Token: ${err}`); }
 	return response['access_token'];
 }
 
@@ -70,10 +61,11 @@ async function refreshToken(credentials) {
  * @param {string} from  - email address to send the message to
  * @param {string} subject - the email message subject
  * @param {string} message - the body of the email message
+ * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @returns {string} the encoded email message
  */
- function makeEmailBody(to, from, subject, message) {
-	let str = `Content-Type: text/html; charset="UTF-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\nto: ${to}\nfrom: ${from}\nsubject: ${subject}\n\n${message}`;
+ function makeEmailBody(to, from, subject, message, contentType) {
+	let str = `Content-Type: ${contentType || 'text/plain'}; charset="UTF-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\nto: ${to}\nfrom: ${from}\nsubject: ${subject}\n\n${message}`;
 	return Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');  // convert to base64url string
 }
 
@@ -84,9 +76,11 @@ async function refreshToken(credentials) {
  * @param {string} from  - Email address to send the message to
  * @param {string} subject - The email message subject
  * @param {string} message - The body of the email message
- * @returns {Promise<Object>} Resolves to the response from the API
+ * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
+ * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
+ * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
  */
-async function sendEmail(credentials, to, from, subject, message) {
+async function sendEmail(credentials, to, from, subject, message, contentType, errHandler) {
 	let response;
 	let options = {
 		headers: {
@@ -95,12 +89,7 @@ async function sendEmail(credentials, to, from, subject, message) {
 			"Content-Type": `application/json`
 		}
 	};
-	const body = JSON.stringify({raw: makeEmailBody(to, from, subject, message)});
-
-	// ***
-	console.log('sendEmail():', options, body);
-	// ***
-
+	const body = JSON.stringify({raw: makeEmailBody(to, from, subject, message, contentType)});
 	try {
 		response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		if (response.statusCode === 401) {  // Unauthorized - Try to refresh an expired token
@@ -108,26 +97,33 @@ async function sendEmail(credentials, to, from, subject, message) {
 			response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		}
 	} catch (err) {
-		return err;
+		handleErr(`Error sending email: ${err}`);
+		return null;
 	}
-	if (response.statusCode && (response.statusCode >= 300)) console.error('sendEmail() failed; returned Status Code: ' + response.statusCode + '. Response object: ' + response);  // *** TO DO - handle with errorhandler
-	return response;
+	if (!response.statusCode) {
+		handleErr(`Failed to send email; No returned Status Code.`);
+		return null;
+	} else if (response.statusCode >= 300) {
+		handleErr(`Failed to send email; returned Status Code: ${response.statusCode}`);
+		return null;
+	} else return response;
 }
 
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
- * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
+ * @param {string} credentials - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
  * @param {string} to - email address to send the message to
  * @param {string} from  - email address to send the message to
  * @param {string} subject - the email message subject
  * @param {string} message - the body of the email message
+ * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
  * @returns {Promise<Object>} Resolves to the api response from the gmail api
  */
-module.exports = async function (credentials, to, from, subject, message, errHandler) {
-	// *** TO DO ***
-	let resp = await sendEmail(credentials, to, from, subject, message);
-	console.log('credentials:', credentials);
+module.exports = async function (credentials, to, from, subject, message, contentType, errHandler) {
+	// *** TO DO: load credentials from file
+	let resp = await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
+	console.log('***credentials:', credentials);
 	return resp;
 
 	/*
