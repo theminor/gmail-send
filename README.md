@@ -11,12 +11,14 @@ Now you just need to exchange the credentials for an initial access token, which
 There is a good (although somewhat outdated) [answer](https://stackoverflow.com/a/51933602) on StackOverflow that walks through this process pretty well with screenshots (some screens have since changed a little).
 
 Store your credentials in a JSON file in the following form:
-`{
-    clientID: "yourClientID",
-    clientSecret: "yourClientSecret",
-    accessToken: "yourAccessToken",
-    refreshToken:"yourRefreshToken"
-}`
+```
+{
+    "clientID": "yourClientID",
+    "clientSecret": "yourClientSecret",
+    "accessToken": "yourAccessToken",
+    "refreshToken": "yourRefreshToken"
+}
+```
 
 ## Using the gmail-send Module
 
