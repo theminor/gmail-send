@@ -103,5 +103,5 @@ dist
 # TernJS port file
 .tern-port
 
-# API credentials
-.credentials
+# Secret API credentials File
+credentials.json

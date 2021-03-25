@@ -39,9 +39,11 @@ function req(url, options, body) {
 /**
  * Refresh the Access token per the Gmail API and update the passed credentials Object (see https://developers.google.com/identity/protocols/oauth2/web-server#httprest_7)
  * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
+ * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
+ * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
  * @returns {Promise<string>} Resolves to the new Access Token
  */
-async function refreshToken(credentials) {
+async function refreshToken(credentials, errHandler, credentialsPath) {
 	let response;
 	try {
 		let respObj = await req(
@@ -51,7 +53,8 @@ async function refreshToken(credentials) {
 		);
 		response = JSON.parse(respObj.body);
 		credentials.accessToken = response['access_token'];  // should update credentials, since passed by reference and not by value
-	} catch (err) { handleErr(`Error refreshing Token: ${err}`); }
+		fs.writeFileSync(credentialsPath, JSON.stringify(credentials));
+	} catch (err) { handleErr(`Error refreshing Token or saving credentials to disk: ${err}`, errHandler); }
 	return response['access_token'];
 }
 
@@ -78,9 +81,10 @@ async function refreshToken(credentials) {
  * @param {string} message - The body of the email message
  * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
+ * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
  * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
  */
-async function sendEmail(credentials, to, from, subject, message, contentType, errHandler) {
+async function sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath) {
 	let response;
 	let options = {
 		headers: {
@@ -93,36 +97,43 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
 	try {
 		response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		if (response.statusCode === 401) {  // Unauthorized - Try to refresh an expired token
-			options.headers.Authorization = `Bearer ${await refreshToken(credentials)}`;
+			options.headers.Authorization = `Bearer ${await refreshToken(credentials, errHandler, credentialsPath)}`;
 			response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		}
 	} catch (err) {
-		handleErr(`Error sending email: ${err}`);
+		handleErr(`Error sending email: ${err}`, errHandler);
 		return null;
 	}
 	if (!response.statusCode) {
-		handleErr(`Failed to send email; No returned Status Code.`);
+		handleErr(`Failed to send email; No returned Status Code.`, errHandler);
 		return null;
 	} else if (response.statusCode >= 300) {
-		handleErr(`Failed to send email; returned Status Code: ${response.statusCode}`);
+		handleErr(`Failed to send email; returned Status Code: ${response.statusCode}`, errHandler);
 		return null;
 	} else return response;
 }
 
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
- * @param {string} credentials - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
  * @param {string} to - email address to send the message to
  * @param {string} from  - email address to send the message to
  * @param {string} subject - the email message subject
  * @param {string} message - the body of the email message
  * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
+ * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
  * @returns {Promise<Object>} Resolves to the api response from the gmail api
  */
-module.exports = async function (credentials, to, from, subject, message, contentType, errHandler) {
-	// *** TO DO: load credentials from file
-	let resp = await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
+module.exports = async function (to, from, subject, message, contentType, errHandler, credentialsPath) {
+	let credentials;
+	try {
+		credentials = require(credentialsPath || './credentials.json');
+	} catch (err) {
+		handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
+		return null;
+	}
+
+	// let resp = await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
 	console.log('***credentials:', credentials);
 	return resp;
 
