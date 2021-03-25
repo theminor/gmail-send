@@ -10,6 +10,22 @@ Now you just need to exchange the credentials for an initial access token, which
 
 There is a good (although somewhat outdated) [answer](https://stackoverflow.com/a/51933602) on StackOverflow that walks through this process pretty well with screenshots (some screens have since changed a little).
 
+Store your credentials in a JSON file in the following form:
+`{
+    clientID: "yourClientID",
+    clientSecret: "yourClientSecret",
+    accessToken: "yourAccessToken",
+    refreshToken:"yourRefreshToken"
+}`
+
 ## Using the gmail-send Module
 
-To use this module, require it with, for example: `sendEmail = require('./path/to/index.js')`. Finally, to send email, call `sendEmail(credentials, to, from, subject, message)`, where `credentials` is an object in the following form: `{clientID: "yourClientID", clientSecret: "yourClientSecret", accessToken: "yourAccessToken", refreshToken:"yourRefreshToken"}`. The remaining parameters, `to`, `from`, `subject`, and `message` are strings contining the relevant email information. 
+To use this module, require it with, for example: `sendEmail = require('./path/to/index.js')`.
+
+Finally, to send email, call `sendEmail(to, from, subject, message, contentType, errHandler, credentialsPath`), where `credentialsPath` is the path to your credentials JSON file in the following form: `{clientID: "yourClientID", clientSecret: "yourClientSecret", accessToken: "yourAccessToken", refreshToken:"yourRefreshToken"}`. The `credentialsPath` parameter will default to `"./credentials.json"` if not specified. This file should be kept secret, obviously and be sure it is ignored from your repository (already included in `.gitignore` if kept at the default location).
+
+The parameters, `to`, `from`, `subject`, and `message` are strings contining the relevant email information.
+
+`errHandler` is an optional callback function to handle any errors.
+
+`contentType` is the content type for the email message as a string - this can be `text/plain`, `text/html`, or any other supported content type. `contentType` defaults to `text/plain` if not specified.

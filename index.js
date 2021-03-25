@@ -79,7 +79,7 @@ async function refreshToken(credentials, errHandler, credentialsPath) {
  * @param {string} from  - Email address to send the message to
  * @param {string} subject - The email message subject
  * @param {string} message - The body of the email message
- * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
+ * @param {string} [contentType] - the content type for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
  * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
  * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
