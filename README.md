@@ -22,7 +22,7 @@ Store your credentials in a JSON file in the following form:
 
 ## Using the gmail-send Module
 
-To use this module, require it with, for example: `sendEmail = require('./path/to/index.js')`.
+To use this module, first install it with `npm install send-gmail`. Then, in your application, require it with, for example: `const sendEmail = require('send-gmail')`.
 
 Finally, to send email, call `await sendEmail(to, from, subject, message, contentType, errHandler, credentialsPath)`, where `credentialsPath` is the path to your credentials JSON file (see above). The `credentialsPath` parameter will default to `./credentials.json` if not specified. This file should be kept secret, obviously and be sure it is ignored from your repository (already included in `.gitignore` if kept at the default location).
 
