@@ -126,11 +126,12 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
  */
 module.exports = async function (to, from, subject, message, contentType, errHandler, credentialsPath) {
 	let credentials;
+	if (!credentialsPath) credentialsPath = './credentials.json';
 	try {
-		credentials = require(credentialsPath || './credentials.json');
+		credentials = require(credentialsPath);
 	} catch (err) {
 		handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
 		return null;
 	}
-	return await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
+	return await sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath);
 };
