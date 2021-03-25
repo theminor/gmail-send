@@ -128,7 +128,7 @@ module.exports = async function (to, from, subject, message, contentType, errHan
 	let credentials;
 	if (!credentialsPath) credentialsPath = './credentials.json';
 	try {
-		credentials = require(credentialsPath);
+		credentials = JSON.parse(fs.readFileSync(credentialsPath));
 	} catch (err) {
 		handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
 		return null;
