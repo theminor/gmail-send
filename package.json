@@ -1,5 +1,5 @@
 {
-	"name": "gmail-send",
+	"name": "send-gmail",
 	"version": "1.0.0",
 	"description": "Send email through gmail",
 	"main": "index.js",
@@ -8,7 +8,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/theminor/gmail-send.git"
+		"url": "git+https://github.com/theminor/send-gmail.git"
 	},
 	"keywords": [
 		"email",
@@ -19,7 +19,7 @@
 	"author": "theminor",
 	"license": "UNLICENSED",
 	"bugs": {
-		"url": "https://github.com/theminor/gmail-send/issues"
+		"url": "https://github.com/theminor/send-gmail/issues"
 	},
-	"homepage": "https://github.com/theminor/gmail-send#readme"
+	"homepage": "https://github.com/theminor/send-gmail#readme"
 }
