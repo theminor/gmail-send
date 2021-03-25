@@ -122,7 +122,7 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
  * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
  * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
- * @returns {Promise<Object>} Resolves to the api response from the gmail api
+ * @returns {Promise<Object>} Resolves to the api response body from the gmail api
  */
 module.exports = async function (to, from, subject, message, contentType, errHandler, credentialsPath) {
 	let credentials;
