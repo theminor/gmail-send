@@ -132,18 +132,5 @@ module.exports = async function (to, from, subject, message, contentType, errHan
 		handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
 		return null;
 	}
-
-	// let resp = await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
-	console.log('***credentials:', credentials);
-	return resp;
-
-	/*
-	try {
-		return await sendMessage(await authorize(credentials), to, from, subject, message);
-	} catch (err) {
-		if (errHandler) errHandler(err);
-		else console.error(`Error sending gmail message: ${err}`);
-		return null;
-	}
-	*/
+	return await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
 };
