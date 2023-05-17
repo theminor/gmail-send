@@ -1,3 +1,7 @@
+# Please Note that the Google API has changed and this module is now broken! I will be updating it when I can or else depreciating this module...
+
+Prior guidance is below...
+
 # send-gmail
 
 A very simple Node module with one purpose: to send email through the gmail API. This module simply formats the email message and makes basic API requests through the gmail API. For a more robust email solution, check out [Nodemailer](https://nodemailer.com/)
