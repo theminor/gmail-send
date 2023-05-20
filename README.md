@@ -1,6 +1,4 @@
-# Please Note that the Google API has changed and this module is now broken! I will be updating it when I can or else depreciating this module...
-
-Prior guidance is below...
+## Please Note that the Google API has changed slightly, but the method below still works. The steps look a little different, especially with regard to the OAuth playground, but the idea is still the same.
 
 # send-gmail
 
