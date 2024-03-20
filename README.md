@@ -22,6 +22,15 @@ Store your credentials in a JSON file in the following form:
 }
 ```
 
+_*OR*_ you can use Environment Variables instead of using a credentials file: 
+
+```
+SENDGMAIL_CLIENTID
+SENDGMAIL_CLIENTSECRET
+SENDGMAIL_ACCESSTOKEN
+SENDGMAIL_REFRESHTOKEN
+```
+
 ## Using the gmail-send Module
 
 To use this module, first install it with `npm install send-gmail`. Then, in your application, require it with, for example: `const sendEmail = require('send-gmail')`.

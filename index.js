@@ -9,6 +9,7 @@ const fs = require('fs');
 function handleErr(errMsg, errHandler) {
 	if (errHandler) errHandler(errMsg);
 	else console.error(errMsg);
+	return null;
 }
 
 /**
@@ -130,8 +131,10 @@ module.exports = async function (to, from, subject, message, contentType, errHan
 	try {
 		credentials = JSON.parse(fs.readFileSync(credentialsPath));
 	} catch (err) {
-		handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
-		return null;
+		// handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
+		// return null;
 	}
-	return await sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath);
+	if (!credentials || !credentials.clientId) credentials = {clientId: process.env.SENDGMAIL_CLIENTID, clientSecret: process.env.SENDGMAIL_CLIENTSECRET, refreshToken: process.env.SENDGMAIL_REFRESHTOKEN, accessToken: process.env.SENDGMAIL_ACCESSTOKEN}
+	if (!credentials || !credentials.clientId) return handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json or from Environment Variables'}`, errHandler);
+	else return await sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath);
 };

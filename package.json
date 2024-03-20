@@ -1,6 +1,6 @@
 {
 	"name": "send-gmail",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Send email through gmail",
 	"main": "index.js",
 	"scripts": {
