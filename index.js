@@ -1,5 +1,4 @@
 const https = require('https');
-const fs = require('fs');
 
 /**
  * Log or send an error to the provided errHandler function
@@ -41,10 +40,9 @@ function req(url, options, body) {
  * Refresh the Access token per the Gmail API and update the passed credentials Object (see https://developers.google.com/identity/protocols/oauth2/web-server#httprest_7)
  * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
- * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
- * @returns {Promise<string>} Resolves to the new Access Token
+ * @returns {Promise<string>} Resolves to the modified credentials, which include the new Access Token
  */
-async function refreshToken(credentials, errHandler, credentialsPath) {
+async function refreshToken(credentials, errHandler) {
 	let response;
 	try {
 		let respObj = await req(
@@ -54,9 +52,8 @@ async function refreshToken(credentials, errHandler, credentialsPath) {
 		);
 		response = JSON.parse(respObj.body);
 		credentials.accessToken = response['access_token'];  // should update credentials, since passed by reference and not by value
-		fs.writeFileSync(credentialsPath, JSON.stringify(credentials));
 	} catch (err) { handleErr(`Error refreshing Token or saving credentials to disk: ${err}`, errHandler); }
-	return response['access_token'];
+	return credentials;
 }
 
 /**
@@ -82,7 +79,6 @@ async function refreshToken(credentials, errHandler, credentialsPath) {
  * @param {string} message - The body of the email message
  * @param {string} [contentType] - the content type for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
- * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
  * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
  */
 async function sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath) {
@@ -98,7 +94,7 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
 	try {
 		response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		if (response.statusCode === 401) {  // Unauthorized - Try to refresh an expired token
-			options.headers.Authorization = `Bearer ${await refreshToken(credentials, errHandler, credentialsPath)}`;
+			options.headers.Authorization = `Bearer ${await refreshToken(credentials, errHandler).accessToken}`;
 			response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		}
 	} catch (err) {
@@ -114,27 +110,18 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
 	} else return response;
 }
 
+
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
- * @param {string} to - email address to send the message to
- * @param {string} from  - email address to send the message to
- * @param {string} subject - the email message subject
- * @param {string} message - the body of the email message
- * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
+ * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
+ * @param {string} to - Email address to send the message to
+ * @param {string} from  - Email address to send the message to
+ * @param {string} subject - The email message subject
+ * @param {string} message - The body of the email message
+ * @param {string} [contentType] - the content type for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
- * @param {string} [credentialsPath] - The path to the credentials JSON file storing the gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}. Defaults to "./credentials.json"
- * @returns {Promise<Object>} Resolves to the api response body from the gmail api
+ * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
  */
-module.exports = async function (to, from, subject, message, contentType, errHandler, credentialsPath) {
-	let credentials;
-	if (!credentialsPath) credentialsPath = './credentials.json';
-	try {
-		credentials = JSON.parse(fs.readFileSync(credentialsPath));
-	} catch (err) {
-		// handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json'}`, errHandler);
-		// return null;
-	}
-	if (!credentials || !credentials.clientId) credentials = {clientId: process.env.SENDGMAIL_CLIENTID, clientSecret: process.env.SENDGMAIL_CLIENTSECRET, refreshToken: process.env.SENDGMAIL_REFRESHTOKEN, accessToken: process.env.SENDGMAIL_ACCESSTOKEN}
-	if (!credentials || !credentials.clientId) return handleErr(`Error loading credentials file from ${credentialsPath || './credentials.json or from Environment Variables'}`, errHandler);
-	else return await sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath);
+module.exports = async function (credentials, to, from, subject, message, contentType, errHandler) {
+	return await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
 };
