@@ -8,7 +8,6 @@ const https = require('https');
 function handleErr(errMsg, errHandler) {
 	if (errHandler) errHandler(errMsg);
 	else console.error(errMsg);
-	return null;
 }
 
 /**
@@ -40,7 +39,7 @@ function req(url, options, body) {
  * Refresh the Access token per the Gmail API and update the passed credentials Object (see https://developers.google.com/identity/protocols/oauth2/web-server#httprest_7)
  * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
- * @returns {Promise<string>} Resolves to the modified credentials, which include the new Access Token
+ * @returns {Promise<string>} Resolves to the new Access Token
  */
 async function refreshToken(credentials, errHandler) {
 	let response;
@@ -53,7 +52,7 @@ async function refreshToken(credentials, errHandler) {
 		response = JSON.parse(respObj.body);
 		credentials.accessToken = response['access_token'];  // should update credentials, since passed by reference and not by value
 	} catch (err) { handleErr(`Error refreshing Token or saving credentials to disk: ${err}`, errHandler); }
-	return credentials;
+	return response['access_token'];
 }
 
 /**
@@ -81,7 +80,7 @@ async function refreshToken(credentials, errHandler) {
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
  * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
  */
-async function sendEmail(credentials, to, from, subject, message, contentType, errHandler, credentialsPath) {
+async function sendEmail(credentials, to, from, subject, message, contentType, errHandler) {
 	let response;
 	let options = {
 		headers: {
@@ -94,7 +93,7 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
 	try {
 		response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		if (response.statusCode === 401) {  // Unauthorized - Try to refresh an expired token
-			options.headers.Authorization = `Bearer ${await refreshToken(credentials, errHandler).accessToken}`;
+			options.headers.Authorization = `Bearer ${await refreshToken(credentials, errHandler)}`;
 			response = await req('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', options, body);
 		}
 	} catch (err) {
@@ -110,17 +109,15 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
 	} else return response;
 }
 
-
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
- * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
- * @param {string} to - Email address to send the message to
- * @param {string} from  - Email address to send the message to
- * @param {string} subject - The email message subject
- * @param {string} message - The body of the email message
- * @param {string} [contentType] - the content type for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
+ * @param {string} to - email address to send the message to
+ * @param {string} from  - email address to send the message to
+ * @param {string} subject - the email message subject
+ * @param {string} message - the body of the email message
+ * @param {string} [contentType] - the contenttype for the email message. Can be "text/plain", "text/html", or another supported content type. Defaults to "text/plain"
  * @param {function(error)} [errHandler] - if supplied, this function will be called with the error passed to it in the event of an error; otherwise, errors will be logged to console.error()
- * @returns {Promise<Object>} Resolves to the response from the API or null if sending failed
+ * @returns {Promise<Object>} Resolves to the api response body from the gmail api
  */
 module.exports = async function (credentials, to, from, subject, message, contentType, errHandler) {
 	return await sendEmail(credentials, to, from, subject, message, contentType, errHandler);
