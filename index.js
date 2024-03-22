@@ -111,6 +111,7 @@ async function sendEmail(credentials, to, from, subject, message, contentType, e
 
 /**
  * Send email using the gmail API. Require this module with, for example, sendEmail = require('./thisfile.js') and then send email with sendEmail(credentials, to, from, subject, message);
+ * @param {Object} credentials - The gmail API credentials in the form {clientId: "", clientSecret: "", refreshToken: "", accessToken: ""}
  * @param {string} to - email address to send the message to
  * @param {string} from  - email address to send the message to
  * @param {string} subject - the email message subject
